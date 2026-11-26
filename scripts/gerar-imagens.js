@@ -29,11 +29,12 @@ const MODELO_TEXTO = '@cf/meta/llama-3.1-8b-instruct';
 const LIMITE_POR_EXECUCAO = 12; // protege a cota gratuita diária
 
 // Linguagem fotográfica do brandbook (em inglês: o FLUX entende melhor).
-const ESTILO = 'editorial documentary photograph, natural window light, warm soft tones, slightly desaturated colors, medium contrast, open shadows, calm and welcoming mood, shallow depth of field, real-looking Brazilian people of diverse ages and skin tones, clean uncluttered background. No text, no letters, no logos, no labels, no bottles, no products, no smoke, no cigarettes, no cannabis leaves, no neon colors.';
+// Só descrições positivas: o FLUX não entende "não" e tende a desenhar o que é citado.
+const ESTILO = 'Editorial documentary photograph, natural window light, warm soft tones, slightly desaturated colors, medium contrast, open shadows, calm and welcoming mood, shallow depth of field, real-looking Brazilian people of diverse ages and skin tones, simple uncluttered scene with plain surfaces, wooden furniture and green potted plants.';
 
 const BANNERS = {
   'ciencia-e-pesquisa': 'A Brazilian female researcher in her 40s working at a clean university laboratory bench with a pipette, wooden shelves and green plants in the background, soft daylight.',
-  'cuidado-e-rotina': 'A Brazilian grandmother and her adult daughter talking at a kitchen table in the morning, hands around coffee cups, sunlight coming through the window.',
+  'cuidado-e-rotina': 'A Brazilian grandmother and her adult daughter smiling and talking at a bare wooden kitchen table in the morning, each holding a white ceramic coffee cup, a small potted plant on the windowsill, sunlight coming through the window.',
   'acesso-e-direitos': 'A Brazilian woman and a lawyer reviewing documents together at a simple office desk, calm conversation, folders and a notebook, warm daylight.',
   glossario: 'Close-up of an open notebook with handwritten notes beside a cup of tea and reading glasses on a wooden table, morning light, botanical herbarium sheets in the background.',
   pergunte: 'A Brazilian man in his 50s sitting on a sofa at home, thoughtfully writing a question in a notebook, warm afternoon light.',
@@ -61,7 +62,7 @@ async function paraIngles(pt) {
   try {
     const res = await cf(MODELO_TEXTO, {
       messages: [
-        { role: 'system', content: 'You turn Portuguese photo briefs into one concise English image-generation prompt (max 60 words). Describe only what is visible. Never add text, products, bottles, smoke or cannabis leaves. Reply with the prompt only.' },
+        { role: 'system', content: 'You turn Portuguese photo briefs into one concise English image-generation prompt (max 60 words). Describe only the people, setting, light and objects that should be visible, using positive descriptions only. Do not mention anything that should be absent, and drop any words that negate or forbid things. Reply with the prompt only.' },
         { role: 'user', content: pt },
       ], max_tokens: 160,
     });
