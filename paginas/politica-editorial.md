@@ -9,6 +9,8 @@ O Clareou publica dois textos por dia. Um parte de um estudo científico recente
 
 Os textos são escritos com auxílio de inteligência artificial, a partir de fontes que podem ser verificadas por qualquer pessoa. Todas as fontes aparecem numeradas no fim de cada artigo, com link para o original.
 
+As imagens que acompanham os artigos e as páginas são ilustrativas e geradas por inteligência artificial. Elas não retratam pacientes, profissionais ou lugares reais.
+
 ## Regras que seguimos em todo texto
 
 - Nenhum número ou afirmação sem fonte.

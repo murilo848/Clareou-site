@@ -119,14 +119,16 @@ function loadPosts() {
       tags: Array.isArray(meta.tags) ? meta.tags : [], desc: meta.meta_descricao || meta.linha_fina || '',
       resumo: Array.isArray(meta.resumo) ? meta.resumo : [], tipo: meta.tipo || 'artigo',
       destaque: /^(sim|true)$/i.test(meta.destaque || ''), comece: /^(sim|true)$/i.test(meta.comece || ''),
-      md, url: `artigos/${slug}/`,
+      md, url: `artigos/${slug}/`, img: imgPath(slug), alt: meta.sugestao_de_imagem || '',
     };
   }).sort((a, b) => b.data.localeCompare(a.data) || b.file.localeCompare(a.file));
 }
 
 /* ---------- ilustração em arco (substitui foto enquanto não houver imagens) ---------- */
 let artN = 0;
-function art(p) {
+const imgPath = key => fs.existsSync(path.join(ROOT, 'assets', 'img', key + '.jpg')) ? `assets/img/${key}.jpg` : '';
+function art(p, x) {
+  if (p.img && x) return `<img src="${x.pre}${p.img}" alt="" loading="lazy" decoding="async">`;
   const k = hs(p.slug), P = CATS[p.cat].sky, sx = 90 + k % 220, sy = 146 + (k >> 4) % 26, id = 'g' + (artN++);
   let ex = '';
   if (p.cat === 'ciencia-e-pesquisa') { const cx = 60 + (k >> 5) % 60, cy = 58; ex = `<g fill="none" stroke="#475C6B" stroke-width="2" opacity=".7"><path d="M${cx} ${cy - 16}l14 8v16l-14 8l-14-8v-16zM${cx + 14} ${cy - 8}l22-10M${cx + 36} ${cy - 18}l12 8"/></g><g fill="#475C6B" opacity=".8"><circle cx="${cx + 36}" cy="${cy - 18}" r="4"/><circle cx="${cx + 48}" cy="${cy - 10}" r="3"/></g>`; }
@@ -168,9 +170,9 @@ const ev = p => p.nivel ? `<span class="ev ${p.evk}">Evidência · ${esc(p.nivel
 const meta = p => `<div class="meta"><span>Redação Clareou</span><time class="mono" datetime="${p.data}">${dataCurta(p.data)}</time><span class="mono">${esc(p.tempo)}</span>${ev(p)}</div>`;
 function cardA(p, x) {
   if (p.tipo === 'nota') { const first = p.md.blocks.find(b => b.t === 'p'); return `<article class="qp"><div class="qh">${catTag(p.cat, x)}<span>Nota rápida</span><time class="mono">${dataCurta(p.data)}</time></div><div class="qt">${first ? first.html : ''}</div><a class="btn" href="${x.L(p.url)}">Ler a nota</a></article>`; }
-  return `<article class="card"><a class="arch" href="${x.L(p.url)}" tabindex="-1" aria-hidden="true">${art(p)}</a><div>${catTag(p.cat, x)}<a class="lnk" href="${x.L(p.url)}"><h3>${esc(p.titulo)}</h3></a><p>${esc(p.linha)}</p>${meta(p)}</div></article>`;
+  return `<article class="card"><a class="arch" href="${x.L(p.url)}" tabindex="-1" aria-hidden="true">${art(p, x)}</a><div>${catTag(p.cat, x)}<a class="lnk" href="${x.L(p.url)}"><h3>${esc(p.titulo)}</h3></a><p>${esc(p.linha)}</p>${meta(p)}</div></article>`;
 }
-const tile = (p, x) => `<a class="tile lnk" href="${x.L(p.url)}"><div class="arch">${art(p)}</div>${catSpan(p.cat)}<h3>${esc(p.titulo)}</h3><p>${esc(p.linha)}</p><div class="meta"><span class="mono">${esc(p.tempo)}</span>${ev(p)}</div></a>`;
+const tile = (p, x) => `<a class="tile lnk" href="${x.L(p.url)}"><div class="arch">${art(p, x)}</div>${catSpan(p.cat)}<h3>${esc(p.titulo)}</h3><p>${esc(p.linha)}</p><div class="meta"><span class="mono">${esc(p.tempo)}</span>${ev(p)}</div></a>`;
 function river(list, x, slot) {
   if (!list.length) return `<p class="empty">Os primeiros textos chegam em breve.</p>`;
   return list.map((p, i) => cardA(p, x) + ((i + 1) % 4 === 0 && i + 1 < list.length ? ad('mr', slot) : '')).join('');
@@ -184,7 +186,7 @@ function rail(x, posts, pfx) {
 }
 const tabs = (x, cur) => `<div class="tabs"><div class="wrap scroll">${[['', 'Destaques'], ['recentes/', 'Recentes'], ['seguindo/', 'Seguindo']].map(([h, l]) => `<a class="kick" href="${x.L(h)}"${cur === h ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</div></div>`;
 
-function layout({ x, title, desc, body, canonical, navCur, depth, og, jsonld }) {
+function layout({ x, title, desc, body, canonical, navCur, depth, og, jsonld, image }) {
   const full = title ? `${title} · ${C.nome}` : `${C.nome} · ${C.assinatura}`;
   const can = C.url + '/' + (canonical || '');
   const nav = Object.keys(CATS).map(k => `<a href="${x.L('categoria/' + k + '/')}"${navCur === k ? ' aria-current="page"' : ''}>${CATS[k].n}</a>`).join('') + `<a href="${x.L('glossario/')}"${navCur === 'glossario' ? ' aria-current="page"' : ''}>Glossário</a><a href="${x.L('pergunte/')}"${navCur === 'pergunte' ? ' aria-current="page"' : ''}>Pergunte</a>`;
@@ -196,7 +198,7 @@ function layout({ x, title, desc, body, canonical, navCur, depth, og, jsonld }) 
 <title>${esc(full)}</title>
 <meta name="description" content="${esc(desc || C.descricao)}">
 <link rel="canonical" href="${esc(can)}">
-<meta property="og:site_name" content="${esc(C.nome)}"><meta property="og:title" content="${esc(title || C.nome)}"><meta property="og:description" content="${esc(desc || C.descricao)}"><meta property="og:type" content="${og || 'website'}"><meta property="og:url" content="${esc(can)}"><meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="${esc(C.nome)}"><meta property="og:title" content="${esc(title || C.nome)}"><meta property="og:description" content="${esc(desc || C.descricao)}"><meta property="og:type" content="${og || 'website'}"><meta property="og:url" content="${esc(can)}"><meta property="og:locale" content="pt_BR">${image ? `<meta property="og:image" content="${esc(C.url + '/' + image)}"><meta name="twitter:card" content="summary_large_image">` : ''}
 <meta name="theme-color" content="#2D3B27">
 <link rel="icon" href="${x.pre}assets/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="${esc(C.nome)}" href="${x.pre}feed.xml">
@@ -260,8 +262,8 @@ function home(posts) {
     return `<section class="band tight"><div class="wrap"><div class="sechead"><h2 class="h2">Mais recentes em ${CATS[k].n}</h2><a href="${x.L('categoria/' + k + '/')}">Ver mais →</a></div>${l.length ? `<div class="shelf">${tile(l[0], x)}<div class="mini">${l.slice(1, 4).map(p => `<a class="lnk" href="${x.L(p.url)}"><h3>${esc(p.titulo)}</h3><div class="meta"><time class="mono">${dataCurta(p.data)}</time>${ev(p)}</div></a>`).join('') || '<p class="meta">Mais textos deste território chegam em breve.</p>'}</div></div>` : '<p class="empty">Os primeiros textos deste território chegam em breve.</p>'}${i === 1 ? ad('mr', 'feed') : ''}</div></section>`;
   }).join('');
   const top = lead ? `<section class="band top"><div class="wrap"><div class="topgrid">
-  <a class="lead lnk" href="${x.L(lead.url)}"><div class="arch">${art(lead)}</div><span class="cat kick light"><i style="background:${CATS[lead.cat].c}"></i>${CATS[lead.cat].n}</span><h1>${esc(lead.titulo)}</h1><p class="dek">${esc(lead.linha)}</p>${meta(lead)}</a>
-  <div><h2 class="kick light" style="margin:0 0 8px">Em destaque</h2>${side.map(p => `<a class="si lnk" href="${x.L(p.url)}"><div class="arch">${art(p)}</div><div>${catSpan(p.cat)}<h3>${esc(p.titulo)}</h3><div class="meta"><time class="mono">${dataCurta(p.data)}</time>${ev(p)}</div></div></a>`).join('') || '<p class="meta">Novos destaques todos os dias.</p>'}</div>
+  <a class="lead lnk" href="${x.L(lead.url)}"><div class="arch">${art(lead, x)}</div><span class="cat kick light"><i style="background:${CATS[lead.cat].c}"></i>${CATS[lead.cat].n}</span><h1>${esc(lead.titulo)}</h1><p class="dek">${esc(lead.linha)}</p>${meta(lead)}</a>
+  <div><h2 class="kick light" style="margin:0 0 8px">Em destaque</h2>${side.map(p => `<a class="si lnk" href="${x.L(p.url)}"><div class="arch">${art(p, x)}</div><div>${catSpan(p.cat)}<h3>${esc(p.titulo)}</h3><div class="meta"><time class="mono">${dataCurta(p.data)}</time>${ev(p)}</div></div></a>`).join('') || '<p class="meta">Novos destaques todos os dias.</p>'}</div>
  </div></div></section>` : `<section class="band top"><div class="wrap"><h1 class="h2" style="color:var(--manha)">${esc(C.assinatura)}</h1><p class="dek">Os primeiros textos chegam em breve.</p></div></section>`;
   const body = `${tabs(x, '')}<div class="wrap">${ad('lb', 'topo')}</div>${top}
  <section class="band"><div class="wrap cols"><div><div class="sechead"><div><h2 class="h2">Mais recentes</h2><p>Tudo o que saiu, em ordem.</p></div><a href="${x.L('recentes/')}">Ver todos →</a></div>${river(posts.filter(p => p !== lead).slice(0, 12), x, 'feed')}</div>${rail(x, posts, 'h')}</div></section>
@@ -280,9 +282,10 @@ function seguindo(posts) {
   <div class="chips" id="chips">${Object.keys(CATS).map(k => `<button class="btn fol" data-k="${k}" aria-pressed="false">${CATS[k].n}</button>`).join('')}${tags.map(t => `<button class="btn fol" data-k="${esc(t)}" aria-pressed="false">${esc(t)}</button>`).join('')}</div>
   <div id="follow-list"><p class="empty">Você ainda não segue nenhum tema. Toque em um acima.</p></div></div>${rail(x, posts, 's')}</div></section>` }));
 }
+const bannerImg = (key, x) => { const b = imgPath('banner-' + key); return b ? `<div class="arch"><img src="${x.pre}${b}" alt="" decoding="async"></div>` : ''; };
 function categoria(posts, k) {
   const x = ctx(2), c = CATS[k], list = posts.filter(p => p.cat === k);
-  write(`categoria/${k}/index.html`, layout({ x, title: c.n, desc: c.d, canonical: `categoria/${k}/`, navCur: k, body: `<section class="ch" style="background:${c.c};color:${c.fg}"><div class="wrap"><span class="kick">Território</span><h1>${c.n}</h1><p>${c.d}</p><button class="btn fol ghost" data-k="${k}" aria-pressed="false">Seguir tema</button></div></section><div class="wrap">${ad('lb', 'topo')}</div><section class="band"><div class="wrap cols"><div>${river(list, x, 'feed')}</div>${rail(x, posts, 'c' + k)}</div></section>` }));
+  write(`categoria/${k}/index.html`, layout({ x, title: c.n, desc: c.d, canonical: `categoria/${k}/`, navCur: k, body: `<section class="ch" style="background:${c.c};color:${c.fg}"><div class="wrap chgrid"><div><span class="kick">Território</span><h1>${c.n}</h1><p>${c.d}</p><button class="btn fol ghost" data-k="${k}" aria-pressed="false">Seguir tema</button></div>${bannerImg(k, x)}</div></section><div class="wrap">${ad('lb', 'topo')}</div><section class="band"><div class="wrap cols"><div>${river(list, x, 'feed')}</div>${rail(x, posts, 'c' + k)}</div></section>` }));
 }
 function artigo(posts, p) {
   const x = ctx(2);
@@ -294,7 +297,7 @@ function artigo(posts, p) {
  <div class="crumb"><a href="${x.L('')}">Início</a> / <a href="${x.L('categoria/' + p.cat + '/')}">${CATS[p.cat].n}</a></div>
  <div class="mt">${catTag(p.cat, x)}</div><h1>${esc(p.titulo)}</h1><p class="dek mute">${esc(p.linha)}</p>
  <div class="rev">${ev(p)}<span class="mono">Publicado · ${dataCurta(p.data)}</span><span class="mono">Leitura · ${esc(p.tempo)}</span><span>Redação Clareou</span></div>
- <div class="arch">${art(p)}</div>
+ <figure class="hero"><div class="arch">${p.img ? `<img src="${x.pre}${p.img}" alt="${esc(p.alt)}" decoding="async">` : art(p, x)}</div>${p.img ? '<figcaption>Imagem ilustrativa gerada por inteligência artificial.</figcaption>' : ''}</figure>
  ${p.resumo.length ? `<div class="sum"><span class="kick">Resumo em 30 segundos</span><ul>${p.resumo.map(r => `<li>${inline(r)}</li>`).join('')}</ul></div>` : ''}
  <div class="acts share"><button class="btn copy" data-url="${esc(C.url + '/' + p.url)}"><svg aria-hidden="true"><use href="#i-link"/></svg><span>Copiar link</span></button><a class="btn" href="https://wa.me/?text=${share}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-chat"/></svg>Enviar no WhatsApp</a><button class="btn fol" data-k="${p.cat}" aria-pressed="false">Seguir ${CATS[p.cat].n}</button></div>
  <div class="prose">${body}</div>
@@ -304,12 +307,12 @@ function artigo(posts, p) {
  </article><aside class="rail">${p.md.toc.length ? `<nav class="box toc" aria-label="Neste artigo"><span class="kick">Neste artigo</span>${p.md.toc.map(([id, t]) => `<a href="#${id}">${inline(t)}</a>`).join('')}</nav>` : ''}
  <div class="ask"><h2>Ficou alguma dúvida?</h2><p>Mande sua pergunta. Respondemos com fontes, sem julgamento.</p><a class="btn pri" href="${x.L('pergunte/')}">Enviar pergunta</a></div>
  <div class="stick">${ad('mr', 'lateralFixo')}</div></aside></div></section>`;
-  write(`${p.url}index.html`, layout({ x, title: p.titulo, desc: p.desc, canonical: p.url, navCur: p.cat, og: 'article', body: html,
-    jsonld: { '@context': 'https://schema.org', '@type': 'Article', headline: p.titulo, description: p.desc, datePublished: p.data, dateModified: p.data, inLanguage: 'pt-BR', articleSection: CATS[p.cat].n, keywords: p.tags.join(', '), author: { '@type': 'Organization', name: C.nome }, publisher: { '@type': 'Organization', name: C.nome }, mainEntityOfPage: C.url + '/' + p.url } }));
+  write(`${p.url}index.html`, layout({ x, title: p.titulo, desc: p.desc, canonical: p.url, navCur: p.cat, og: 'article', body: html, image: p.img,
+    jsonld: { '@context': 'https://schema.org', '@type': 'Article', headline: p.titulo, description: p.desc, datePublished: p.data, dateModified: p.data, inLanguage: 'pt-BR', articleSection: CATS[p.cat].n, keywords: p.tags.join(', '), author: { '@type': 'Organization', name: C.nome }, publisher: { '@type': 'Organization', name: C.nome }, mainEntityOfPage: C.url + '/' + p.url, ...(p.img ? { image: C.url + '/' + p.img } : {}) } }));
 }
 function simples(slug, title, desc, inner, navCur, posts, head) {
   const x = ctx(1);
-  write(`${slug}/index.html`, layout({ x, title, desc, canonical: slug + '/', navCur, body: `<section class="ch" style="${head || 'background:var(--nevoa)'}"><div class="wrap"><span class="kick">${esc(title === 'Pergunte' ? 'Pergunte' : C.nome)}</span><h1>${esc(title)}</h1><p>${esc(desc)}</p></div></section><section class="band"><div class="wrap cols"><div class="prose">${inner}</div>${rail(x, posts, slug)}</div></section>` }));
+  write(`${slug}/index.html`, layout({ x, title, desc, canonical: slug + '/', navCur, body: `<section class="ch" style="${head || 'background:var(--nevoa)'}"><div class="wrap chgrid"><div><span class="kick">${esc(title === 'Pergunte' ? 'Pergunte' : C.nome)}</span><h1>${esc(title)}</h1><p>${esc(desc)}</p></div>${bannerImg(slug, x)}</div></section><section class="band"><div class="wrap cols"><div class="prose">${inner}</div>${rail(x, posts, slug)}</div></section>` }));
 }
 function paginas(posts) {
   const dir = path.join(ROOT, 'paginas');
@@ -332,7 +335,7 @@ function extras(posts) {
   write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${C.url}/sitemap.xml\n`);
   if (C.adsenseClient) write('ads.txt', `google.com, ${C.adsenseClient.replace(/^ca-/, '')}, DIRECT, f08c47fec0942fa0\n`);
   write('search.json', JSON.stringify(posts.map(p => ({ u: p.url, t: p.titulo, l: p.linha, c: p.cat, cn: CATS[p.cat].n, d: p.data, e: p.nivel, g: p.tags, x: norm([p.titulo, p.linha, p.tags.join(' '), p.md.blocks.map(b => b.html.replace(/<[^>]+>/g, '')).join(' ')].join(' ')).slice(0, 4000) }))));
-  for (const f of fs.readdirSync(path.join(ROOT, 'assets'))) fs.copyFileSync(path.join(ROOT, 'assets', f), path.join(OUT, 'assets', f));
+  fs.cpSync(path.join(ROOT, 'assets'), path.join(OUT, 'assets'), { recursive: true });
 }
 
 /* ---------- executar ---------- */
