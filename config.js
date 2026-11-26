@@ -17,9 +17,9 @@ module.exports = {
   mostrarEspacosDeAnuncio: false,
 
   // Endereço do formulário da newsletter (Buttondown, Brevo, Substack, Mailchimp…). Vazio = "em breve".
-  newsletterAction: '',
+  newsletterAction: 'https://buttondown.com/api/emails/embed-subscribe/CLAREOU',
   // Endereço do formulário de perguntas (Formspree, Tally, Google Forms…). Vazio = "em breve".
-  perguntaAction: '',
+  perguntaAction: 'https://formspree.io/f/xbgobaog',
   // ID do Google Analytics 4 (ex.: 'G-XXXXXXXXXX'). Opcional.
   analytics: '',
 };
