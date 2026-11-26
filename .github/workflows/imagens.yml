@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths: ['posts/**']
   workflow_dispatch:
+  # Uma vez por dia (18h de Brasília) usa a sobra da cota grátis para refazer imagens antigas.
+  schedule:
+    - cron: '0 21 * * *'
 
 permissions:
   contents: write

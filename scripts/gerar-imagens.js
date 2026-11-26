@@ -24,9 +24,14 @@ const ID_CONTA_PADRAO = '1ca1ac9176eec7358e43aa034661365b';
 const CF_ACCOUNT_ID = achados(process.env.CF_ACCOUNT_ID, /[a-f0-9]{32}/gi)[0] || ID_CONTA_PADRAO;
 const tokens = achados(process.env.CF_API_TOKEN, /[A-Za-z0-9_-]{30,}/g);
 const CF_API_TOKEN = tokens.find(t => !/^[a-f0-9]{32}$/i.test(t)) || tokens[0] || '';
-const MODELO_IMAGEM = '@cf/black-forest-labs/flux-1-schnell';
-const MODELO_TEXTO = '@cf/meta/llama-3.1-8b-instruct';
-const LIMITE_POR_EXECUCAO = 12; // protege a cota gratuita diária
+// FLUX.2 klein 9B: a melhor qualidade que cabe na cota gratuita (~1.370 neurons por imagem de 1280x800).
+const MODELO_IMAGEM = '@cf/black-forest-labs/flux-2-klein-9b';
+const NOME_MODELO = 'flux-2-klein-9b';
+const LARGURA = 1280, ALTURA = 800; // 8:5, o mesmo formato dos cards e das capas
+const MODELO_TEXTO = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+// A cota grátis é de 10.000 neurons/dia. 3 imagens por execução (~4.100 neurons) e 2 execuções por dia cabem nela.
+const LIMITE_POR_EXECUCAO = Number(process.env.LIMITE || 3);
+const REGISTRO = path.join(IMG, 'modelos.json'); // qual modelo gerou cada imagem
 
 // Linguagem fotográfica do brandbook (em inglês: o FLUX entende melhor).
 // Só descrições positivas: o FLUX não entende "não" e tende a desenhar o que é citado.
@@ -49,8 +54,11 @@ function frontmatter(src) {
 const slugDe = (f, meta) => meta.slug || f.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/^(ciencia|atual|cuidado|acesso|nota)-/, '');
 
 async function cf(model, body) {
+  const multipart = body instanceof FormData;
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/${model}`, {
-    method: 'POST', headers: { Authorization: `Bearer ${CF_API_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    method: 'POST',
+    headers: multipart ? { Authorization: `Bearer ${CF_API_TOKEN}` } : { Authorization: `Bearer ${CF_API_TOKEN}`, 'Content-Type': 'application/json' },
+    body: multipart ? body : JSON.stringify(body),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || j.success === false) throw new Error(`${model}: HTTP ${r.status} ${JSON.stringify(j.errors || j).slice(0, 300)}`);
@@ -71,12 +79,17 @@ async function paraIngles(pt) {
   } catch (e) { console.warn('  tradução falhou, usando o texto original:', e.message); return pt; }
 }
 
-async function gerar(arquivo, cena) {
+async function gerar(arquivo, cena, registro) {
   const prompt = `${cena} ${ESTILO}`.slice(0, 2000);
   if (SIMULAR) { console.log(`  [simulação] ${path.basename(arquivo)}\n    ${prompt.slice(0, 160)}…`); return; }
-  const res = await cf(MODELO_IMAGEM, { prompt, steps: 8 });
-  if (!res || !res.image) throw new Error('resposta sem imagem');
-  fs.writeFileSync(arquivo, Buffer.from(res.image, 'base64'));
+  const form = new FormData();
+  form.append('prompt', prompt); form.append('width', String(LARGURA)); form.append('height', String(ALTURA));
+  const res = await cf(MODELO_IMAGEM, form);
+  const b64 = typeof res === 'string' ? res : res && res.image;
+  if (!b64) throw new Error('resposta sem imagem: ' + JSON.stringify(res).slice(0, 200));
+  fs.writeFileSync(arquivo, Buffer.from(b64, 'base64'));
+  registro[path.basename(arquivo)] = NOME_MODELO;
+  fs.writeFileSync(REGISTRO, JSON.stringify(registro, null, 2) + '\n');
   console.log(`  ✓ ${path.relative(ROOT, arquivo)}`);
 }
 
@@ -86,21 +99,28 @@ async function gerar(arquivo, cena) {
     if (!CF_ACCOUNT_ID || !CF_API_TOKEN) { console.error('Confira os segredos CF_ACCOUNT_ID (32 letras e números) e CF_API_TOKEN no GitHub.'); process.exit(1); }
   }
   fs.mkdirSync(IMG, { recursive: true });
-  const fila = [];
+  let registro = {}; try { registro = JSON.parse(fs.readFileSync(REGISTRO, 'utf8')); } catch (e) {}
+  const fila = [], melhorar = [];
+  const antigo = f => registro[path.basename(f)] !== NOME_MODELO;
   const dir = path.join(ROOT, 'posts');
   for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().reverse()) {
     const meta = frontmatter(fs.readFileSync(path.join(dir, f), 'utf8'));
     const destino = path.join(IMG, slugDe(f, meta) + '.jpg');
-    if (!fs.existsSync(destino) && meta.sugestao_de_imagem) fila.push({ destino, pt: meta.sugestao_de_imagem });
+    if (!meta.sugestao_de_imagem) continue;
+    if (!fs.existsSync(destino)) fila.push({ destino, pt: meta.sugestao_de_imagem });
+    else if (antigo(destino)) melhorar.push({ destino, pt: meta.sugestao_de_imagem });
   }
   for (const [nome, cena] of Object.entries(BANNERS)) {
     const destino = path.join(IMG, `banner-${nome}.jpg`);
     if (!fs.existsSync(destino)) fila.push({ destino, en: cena });
+    else if (antigo(destino)) melhorar.push({ destino, en: cena });
   }
-  console.log(`Imagens a gerar: ${fila.length}${fila.length > LIMITE_POR_EXECUCAO ? ` (fazendo ${LIMITE_POR_EXECUCAO} agora)` : ''}`);
+  // Primeiro as imagens que faltam; depois refaz, com o modelo novo, as feitas pelo modelo antigo.
+  fila.push(...melhorar);
+  console.log(`Modelo: ${NOME_MODELO}. Na fila: ${fila.length - melhorar.length} novas e ${melhorar.length} para refazer${fila.length > LIMITE_POR_EXECUCAO ? ` (fazendo ${LIMITE_POR_EXECUCAO} agora)` : ''}`);
   let falhas = 0;
   for (const item of fila.slice(0, LIMITE_POR_EXECUCAO)) {
-    try { const cena = item.en || (SIMULAR ? item.pt : await paraIngles(item.pt)); await gerar(item.destino, cena); }
+    try { const cena = item.en || (SIMULAR ? item.pt : await paraIngles(item.pt)); await gerar(item.destino, cena, registro); }
     catch (e) { falhas++; console.error(`  ✗ ${path.basename(item.destino)}: ${e.message}`); }
   }
   if (falhas) process.exitCode = 1;
