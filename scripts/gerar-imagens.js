@@ -73,7 +73,7 @@ async function paraIngles(pt) {
 async function gerar(arquivo, cena) {
   const prompt = `${cena} ${ESTILO}`.slice(0, 2000);
   if (SIMULAR) { console.log(`  [simulação] ${path.basename(arquivo)}\n    ${prompt.slice(0, 160)}…`); return; }
-  const res = await cf(MODELO_IMAGEM, { prompt, steps: 8, seed: Math.floor(Math.random() * 1e9) });
+  const res = await cf(MODELO_IMAGEM, { prompt, steps: 8 });
   if (!res || !res.image) throw new Error('resposta sem imagem');
   fs.writeFileSync(arquivo, Buffer.from(res.image, 'base64'));
   console.log(`  ✓ ${path.relative(ROOT, arquivo)}`);
