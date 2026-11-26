@@ -19,7 +19,9 @@ const SIMULAR = process.argv.includes('--simular');
 // Aceita segredos colados com espaços, quebras de linha ou texto a mais: pega só o ID e o token.
 const linhas = v => String(v || '').split(/\r?\n/).filter(l => l.trim()).length;
 const achados = (v, re) => String(v || '').match(re) || [];
-const CF_ACCOUNT_ID = achados(process.env.CF_ACCOUNT_ID, /\b[a-f0-9]{32}\b/gi)[0] || '';
+// O ID da conta não é segredo (aparece no endereço do painel do Cloudflare); fica aqui como reserva.
+const ID_CONTA_PADRAO = '1ca1ac9176eec7358e43aa034661365b';
+const CF_ACCOUNT_ID = achados(process.env.CF_ACCOUNT_ID, /[a-f0-9]{32}/gi)[0] || ID_CONTA_PADRAO;
 const tokens = achados(process.env.CF_API_TOKEN, /[A-Za-z0-9_-]{30,}/g);
 const CF_API_TOKEN = tokens.find(t => !/^[a-f0-9]{32}$/i.test(t)) || tokens[0] || '';
 const MODELO_IMAGEM = '@cf/black-forest-labs/flux-1-schnell';
