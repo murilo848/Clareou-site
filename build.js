@@ -176,7 +176,7 @@ function river(list, x, slot) {
   return list.map((p, i) => cardA(p, x) + ((i + 1) % 4 === 0 && i + 1 < list.length ? ad('mr', slot) : '')).join('');
 }
 function newsBox(x, id) {
-  return `<div class="news"><span class="kick" style="color:var(--broto)">Newsletter · toda quinta</span><h2>A carta do Clareou</h2><p>O que a ciência descobriu na semana, e o que isso muda na prática.</p><form data-form="news"${C.newsletterAction ? ` action="${esc(C.newsletterAction)}" method="post" target="_blank"` : ''}><label for="${id}">Seu e-mail</label><input id="${id}" name="email" type="email" required placeholder="nome@email.com" autocomplete="email"><button>Assinar a newsletter</button><small class="ok">Sem spam. Cancele quando quiser.</small></form></div>`;
+  return `<div class="news"><span class="kick" style="color:var(--broto)">Newsletter · toda quinta</span><h2>A carta do Clareou</h2><p>O que a ciência descobriu na semana, e o que isso muda na prática.</p><form data-form="news"${C.newsletterAction ? ` action="${esc(C.newsletterAction)}" method="post" target="_blank"` : ''}><label for="${id}">Seu e-mail</label><input id="${id}" name="email" type="email" required placeholder="nome@email.com" autocomplete="email">${C.newsletterAction ? '<input type="hidden" name="embed" value="1">' : ''}<button>Assinar a newsletter</button><small class="ok">Sem spam. Cancele quando quiser.</small></form></div>`;
 }
 function rail(x, posts, pfx) {
   let pick = posts.filter(p => p.destaque || p.evk === 'forte'); if (pick.length < 3) pick = posts; pick = pick.filter(p => p.tipo !== 'nota').slice(0, 5);
