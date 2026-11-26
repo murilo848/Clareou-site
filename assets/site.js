@@ -84,10 +84,26 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
   document.addEventListener('submit', e => {
     const f = e.target, kind = f.dataset.form; if (!kind) return;
+    e.preventDefault();
     const live = (kind === 'news' && B.dataset.news === '1') || (kind === 'ask' && B.dataset.ask === '1');
-    const o = f.querySelector('.ok');
-    if (!live) { e.preventDefault(); if (o) o.textContent = kind === 'news' ? 'A newsletter abre em breve. Obrigado pelo interesse!' : 'O envio de perguntas abre em breve. Obrigado!'; return; }
-    if (o) o.textContent = 'Enviado. Obrigado!';
+    const o = f.querySelector('.ok'), btn = f.querySelector('button'), say = t => { if (o) o.textContent = t; };
+    if (!live) { say(kind === 'news' ? 'A newsletter abre em breve. Obrigado pelo interesse!' : 'O envio de perguntas abre em breve. Obrigado!'); return; }
+    const old = btn ? btn.textContent : ''; if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+    const done = () => { if (btn) { btn.disabled = false; btn.textContent = old; } };
+    const data = new FormData(f);
+    let req;
+    if (kind === 'news') {
+      // O Buttondown não devolve resposta legível para outros sites: enviamos em segundo plano e confirmamos aqui.
+      req = fetch(f.action, { method: 'POST', mode: 'no-cors', body: data }).then(() => {
+        f.reset(); say('Pronto! Enviamos um e-mail para você confirmar a inscrição. Se não chegar, olhe a caixa de spam.');
+      });
+    } else {
+      req = fetch(f.action, { method: 'POST', body: data, headers: { Accept: 'application/json' } }).then(r => r.json().then(j => {
+        if (!r.ok) throw new Error((j.errors || []).map(x => x.message).join(' ') || 'erro');
+        f.reset(); say('Pergunta recebida. Obrigado! Ela pode virar um texto do Clareou.');
+      }));
+    }
+    req.catch(() => say('Não foi possível enviar agora. Confira sua conexão e tente de novo.')).finally(done);
   });
 
   applyTheme(); cookie(); syncFollow(); bell();
