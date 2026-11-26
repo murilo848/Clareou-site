@@ -63,7 +63,7 @@ function frontmatter(src) {
 function inline(t) {
   let s = esc(t);
   const links = [];
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]*)\)/g, (_, txt, url) => { links.push(`<a href="${url}"${url.startsWith('http') ? ' rel="noopener" target="_blank"' : ''}>${txt}</a>`); return `\u0000${links.length - 1}\u0000`; });
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]*)\)/g, (_, txt, url) => { links.push(`<a href="${url}"${url.startsWith('http') && !url.startsWith(C.url) ? ' rel="noopener" target="_blank"' : ''}>${txt}</a>`); return `\u0000${links.length - 1}\u0000`; });
   s = s.replace(/https?:\/\/[^\s<]+/g, u => { const tail = u.match(/[.,;:)]+$/)?.[0] || ''; const url = tail ? u.slice(0, -tail.length) : u; links.push(`<a href="${url}" rel="noopener" target="_blank">${url}</a>`); return `\u0000${links.length - 1}\u0000${tail}`; });
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<em>$2</em>');
   s = s.replace(/\[(\d+(?:\s*[,–-]\s*\d+)*)\]/g, (_, n) => `<sup class="cit">[${n.split(/\s*,\s*/).map(x => { const f = x.split(/[–-]/)[0].trim(); return `<a href="#ref-${f}">${x}</a>`; }).join(', ')}]</sup>`);
