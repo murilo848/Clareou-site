@@ -16,7 +16,12 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const IMG = path.join(ROOT, 'assets', 'img');
 const SIMULAR = process.argv.includes('--simular');
-const { CF_ACCOUNT_ID, CF_API_TOKEN } = process.env;
+// Aceita segredos colados com espaços, quebras de linha ou texto a mais: pega só o ID e o token.
+const linhas = v => String(v || '').split(/\r?\n/).filter(l => l.trim()).length;
+const achados = (v, re) => String(v || '').match(re) || [];
+const CF_ACCOUNT_ID = achados(process.env.CF_ACCOUNT_ID, /\b[a-f0-9]{32}\b/gi)[0] || '';
+const tokens = achados(process.env.CF_API_TOKEN, /[A-Za-z0-9_-]{30,}/g);
+const CF_API_TOKEN = tokens.find(t => !/^[a-f0-9]{32}$/i.test(t)) || tokens[0] || '';
 const MODELO_IMAGEM = '@cf/black-forest-labs/flux-1-schnell';
 const MODELO_TEXTO = '@cf/meta/llama-3.1-8b-instruct';
 const LIMITE_POR_EXECUCAO = 12; // protege a cota gratuita diária
@@ -73,7 +78,10 @@ async function gerar(arquivo, cena) {
 }
 
 (async () => {
-  if (!SIMULAR && (!CF_ACCOUNT_ID || !CF_API_TOKEN)) { console.error('Faltam CF_ACCOUNT_ID e CF_API_TOKEN.'); process.exit(1); }
+  if (!SIMULAR) {
+    console.log(`Segredos: CF_ACCOUNT_ID ${CF_ACCOUNT_ID ? 'ok' : 'não encontrado'} (${linhas(process.env.CF_ACCOUNT_ID)} linha/s), CF_API_TOKEN ${CF_API_TOKEN ? 'ok' : 'não encontrado'} (${linhas(process.env.CF_API_TOKEN)} linha/s)`);
+    if (!CF_ACCOUNT_ID || !CF_API_TOKEN) { console.error('Confira os segredos CF_ACCOUNT_ID (32 letras e números) e CF_API_TOKEN no GitHub.'); process.exit(1); }
+  }
   fs.mkdirSync(IMG, { recursive: true });
   const fila = [];
   const dir = path.join(ROOT, 'posts');
