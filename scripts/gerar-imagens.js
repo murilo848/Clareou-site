@@ -61,6 +61,7 @@ async function cf(model, body) {
     body: multipart ? body : JSON.stringify(body),
   });
   const j = await r.json().catch(() => ({}));
+  if ((j.errors || []).some(e => e.code === 4006)) { const e = new Error('cota grátis do dia esgotada'); e.cota = true; throw e; }
   if (!r.ok || j.success === false) throw new Error(`${model}: HTTP ${r.status} ${JSON.stringify(j.errors || j).slice(0, 300)}`);
   return j.result;
 }
@@ -76,7 +77,7 @@ async function paraIngles(pt) {
     });
     const t = String(res.response || '').trim().replace(/^["']|["']$/g, '');
     return t.length > 20 ? t : pt;
-  } catch (e) { console.warn('  tradução falhou, usando o texto original:', e.message); return pt; }
+  } catch (e) { if (e.cota) throw e; console.warn('  tradução falhou, usando o texto original:', e.message); return pt; }
 }
 
 async function gerar(arquivo, cena, registro) {
@@ -121,7 +122,10 @@ async function gerar(arquivo, cena, registro) {
   let falhas = 0;
   for (const item of fila.slice(0, LIMITE_POR_EXECUCAO)) {
     try { const cena = item.en || (SIMULAR ? item.pt : await paraIngles(item.pt)); await gerar(item.destino, cena, registro); }
-    catch (e) { falhas++; console.error(`  ✗ ${path.basename(item.destino)}: ${e.message}`); }
+    catch (e) {
+      if (e.cota) { console.log('A cota grátis do Workers AI de hoje acabou. As imagens que faltam ficam para a próxima rodada (a cota volta à 0h UTC, 21h em Brasília).'); break; }
+      falhas++; console.error(`  ✗ ${path.basename(item.destino)}: ${e.message}`);
+    }
   }
   if (falhas) process.exitCode = 1;
 })();

@@ -6,9 +6,9 @@ on:
     branches: [main]
     paths: ['posts/**']
   workflow_dispatch:
-  # Uma vez por dia (18h de Brasília) usa a sobra da cota grátis para refazer imagens antigas.
+  # Logo depois que a cota grátis renova (0h UTC = 21h em Brasília), gera o que ficou pendente e refaz imagens antigas.
   schedule:
-    - cron: '0 21 * * *'
+    - cron: '30 0 * * *'
 
 permissions:
   contents: write
